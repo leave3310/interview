@@ -1,17 +1,116 @@
+<script setup lang="ts">
+import { QTableProps } from 'quasar';
+import { ref, onMounted } from 'vue';
+
+import { getCRUDTest, postCRUDTest,patchCRUDTest,deleteCRUDTest } from '@/api/module/crudTest';
+import { useToDoStore } from '@/stores/todo';
+import type { BaseCRUDTest } from '@/api/module/crudTest';
+
+interface BtnType {
+  label: string;
+  icon: string;
+  status: string;
+}
+const toDoStore = useToDoStore();
+
+onMounted(async () => {
+  await getCRUDTest();
+})
+
+const inputData = ref({
+  id:'',
+  name: '',
+  age: '',
+});
+
+enum CreateOrEdit {
+  CREATE = 'create',
+  EDIT = 'edit',
+}
+const currentStatus = ref(CreateOrEdit.CREATE);
+const createOrEditData = async () => {
+  if(currentStatus.value === CreateOrEdit.CREATE){
+    const payload = {
+      name: inputData.value.name,
+      age: Number(inputData.value.age),
+    }
+    await postCRUDTest(payload);
+    await getCRUDTest();
+  }else{
+    const payload = {
+      id: inputData.value.id,
+      name: inputData.value.name,
+      age: Number(inputData.value.age),
+    }
+    await patchCRUDTest(payload);
+    await getCRUDTest();
+    currentStatus.value = CreateOrEdit.CREATE;
+  }
+}
+
+const tableConfig = ref([
+  {
+    label: '姓名',
+    name: 'name',
+    field: 'name',
+    align: 'left',
+  },
+  {
+    label: '年齡',
+    name: 'age',
+    field: 'age',
+    align: 'left',
+  },
+]);
+
+enum BtnTable {
+  EDIT = 'edit',
+  DELETE = 'delete',
+}
+const tableButtons = ref<BtnType[]>([
+  {
+    label: '編輯',
+    icon: BtnTable.EDIT,
+    status: BtnTable.EDIT,
+  },
+  {
+    label: '刪除',
+    icon: BtnTable.DELETE,
+    status: BtnTable.DELETE,
+  },
+]);
+
+async function handleClickOption(btn: BtnType, data: BaseCRUDTest) {
+  switch (btn.status) {
+    case BtnTable.EDIT:
+      currentStatus.value = CreateOrEdit.EDIT;
+      inputData.value.name = data.name;
+      inputData.value.age = data.age.toString();
+      inputData.value.id = data.id;
+      break;
+    case BtnTable.DELETE:
+      await deleteCRUDTest(data.id);
+      await getCRUDTest();
+      break;
+  }
+
+}
+</script>
+
 <template>
   <q-page class="row q-pt-xl">
     <div class="full-width q-px-xl">
       <div class="q-mb-xl">
-        <q-input v-model="tempData.name" label="姓名" />
-        <q-input v-model="tempData.age" label="年齡" />
-        <q-btn color="primary" class="q-mt-md">新增</q-btn>
+        <q-input v-model="inputData.name" label="姓名" />
+        <q-input v-model="inputData.age" label="年齡" />
+        <q-btn color="primary" class="q-mt-md" @click="createOrEditData">{{currentStatus === CreateOrEdit.CREATE ? '新增' : '修改'}}</q-btn>
       </div>
 
       <q-table
         flat
         bordered
         ref="tableRef"
-        :rows="blockData"
+        :rows="toDoStore.todoList"
         :columns="(tableConfig as QTableProps['columns'])"
         row-key="id"
         hide-pagination
@@ -77,56 +176,7 @@
   </q-page>
 </template>
 
-<script setup lang="ts">
-import axios from 'axios';
-import { QTableProps } from 'quasar';
-import { ref } from 'vue';
-interface btnType {
-  label: string;
-  icon: string;
-  status: string;
-}
-const blockData = ref([
-  {
-    name: 'test',
-    age: 25,
-  },
-]);
-const tableConfig = ref([
-  {
-    label: '姓名',
-    name: 'name',
-    field: 'name',
-    align: 'left',
-  },
-  {
-    label: '年齡',
-    name: 'age',
-    field: 'age',
-    align: 'left',
-  },
-]);
-const tableButtons = ref([
-  {
-    label: '編輯',
-    icon: 'edit',
-    status: 'edit',
-  },
-  {
-    label: '刪除',
-    icon: 'delete',
-    status: 'delete',
-  },
-]);
 
-const tempData = ref({
-  name: '',
-  age: '',
-});
-function handleClickOption(btn, data) {
-  // ...
-}
-</script>
 
 <style lang="scss" scoped>
 .q-table th {
